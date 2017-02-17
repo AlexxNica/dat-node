@@ -1,6 +1,7 @@
 var assert = require('assert')
 var path = require('path')
 var multicb = require('multicb')
+var xtend = require('xtend')
 var importFiles = require('./lib/import-files')
 var createNetwork = require('./lib/network')
 var stats = require('./lib/stats')
@@ -57,8 +58,19 @@ Dat.prototype.joinNetwork = function (opts) {
   var self = this
 
   opts = opts || {}
-  if (self.archive.owner) opts.download = false
-  var network = self.network = createNetwork(self.archive, opts)
+  var netOpts = xtend({
+    stream: function (peer) {
+      var stream = self.archive.replicate({
+        upload: opts.upload,
+        download: !self.archive.owner && opts.download
+      })
+      stream.on('error', function (err) {
+        console.error(err)
+      })
+      return stream
+    }
+  }, opts)
+  var network = self.network = createNetwork(self.archive, netOpts)
   self.options.network = network.options
 
   network.swarm = network // 1.0 backwards compat. TODO: Remove in v2
